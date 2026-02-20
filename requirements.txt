@@ -32,5 +32,8 @@ seaborn>=0.13.0
 # Graph algorithms (if needed for future extensions)
 networkx>=3.2
 
+# Optional: Keep OpenAI as backup/comparison
+# openai>=1.12.0
+
 # Optional: Anthropic Claude as alternative
 # anthropic>=0.18.0
