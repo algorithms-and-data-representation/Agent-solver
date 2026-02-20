@@ -12,8 +12,7 @@
 
 **Julian David Castiblanco Real**  
 Escuela de Ingenieros  
-Universidad de Los Andes  
-Código: [Tu código aquí]
+Universidad Escuela Colombiana ingenieria Julio Garavito Armero
 
 ---
 
