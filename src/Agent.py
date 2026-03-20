@@ -494,5 +494,217 @@ Constraints:
         print("3. Intenta de nuevo en unos segundos")
 
 
+
+class SolutionChat:
+    """
+    Chat interactivo sobre una solución específica.
+    Permite hacer preguntas sobre el código, complejidad, alternativas, etc.
+    """
+    
+    def __init__(self, agent: 'DPAgent', solution: Solution):
+        """
+        Inicializa el chat con una solución específica
+        
+        Args:
+            agent: DPAgent para hacer queries a Gemini
+            solution: La solución sobre la que chatear
+        """
+        self.agent = agent
+        self.solution = solution
+        self.conversation_history = []
+    
+    def start_chat(self):
+        """
+        Inicia el modo chat interactivo
+        """
+        print("\n" + "="*70)
+        print("💬 MODO CHAT - Pregunta sobre la solución")
+        print("="*70)
+        print()
+        print("Puedes preguntarme sobre:")
+        print("  • Por qué usé cierta estructura de datos")
+        print("  • Cómo funciona alguna parte del código")
+        print("  • La complejidad (temporal o espacial)")
+        print("  • Alternativas a este enfoque")
+        print("  • Optimizaciones posibles")
+        print("  • Casos edge que manejo")
+        print("  • Diferencias con otros enfoques")
+        print()
+        print("💡 Tip: Sé específico en tus preguntas para mejores respuestas")
+        print()
+        print("Escribe 'salir' para volver al menú")
+        print("-"*70)
+        print()
+        
+        while True:
+            try:
+                # Leer pregunta del usuario
+                user_question = input("Tú: ").strip()
+                
+                # Verificar si está vacío
+                if not user_question:
+                    continue
+                
+                # Verificar comandos de salida
+                if user_question.lower() in ['salir', 'exit', 'quit', 'q']:
+                    print("\n👋 Volviendo al menú...\n")
+                    break
+                
+                # Generar respuesta
+                print("\n🤖 Bot: ", end="", flush=True)
+                bot_response = self._get_response(user_question)
+                print(bot_response)
+                print()
+                
+                # Guardar en historial
+                self.conversation_history.append({
+                    "user": user_question,
+                    "bot": bot_response
+                })
+                
+            except KeyboardInterrupt:
+                print("\n\n👋 Chat interrumpido. Volviendo al menú...\n")
+                break
+            except Exception as e:
+                print(f"\n⚠️  Error: {e}\n")
+                continue
+    
+    def _get_response(self, question: str) -> str:
+        """
+        Genera respuesta usando Gemini con contexto completo de la solución
+        
+        Args:
+            question: Pregunta del usuario
+            
+        Returns:
+            Respuesta del bot
+        """
+        
+        # Construir contexto completo de la solución
+        context_prompt = f"""Eres un tutor experto en programación y algoritmos.
+
+El estudiante acaba de ver la solución completa para el problema 
+"{self.solution.problem_name}" y ahora tiene una pregunta específica.
+
+CONTEXTO COMPLETO DE LA SOLUCIÓN:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Análisis del Problema:
+{self.solution.analysis}
+
+🎯 Patrón DP Identificado:
+{self.solution.pattern}
+
+⚙️  Algoritmo Usado:
+{self.solution.algorithm}
+
+📐 Enfoque:
+{self.solution.approach}
+
+💻 Código Generado:
+```python
+{self.solution.code}
+```
+
+⏱️  Complejidad Temporal:
+{self.solution.time_complexity}
+
+💾 Complejidad Espacial:
+{self.solution.space_complexity}
+
+📝 Explicación Completa:
+{self.solution.explanation}
+"""
+
+        # Agregar tests si existen
+        if self.solution.test_cases:
+            context_prompt += f"""
+
+🧪 Casos de Prueba:
+"""
+            for i, test in enumerate(self.solution.test_cases[:3], 1):
+                context_prompt += f"""
+Test {i}: {test.get('description', 'N/A')}
+  Input: {test.get('input', 'N/A')}
+  Expected: {test.get('expected_output', 'N/A')}
+"""
+
+        # Agregar historial de conversación si existe
+        if self.conversation_history:
+            context_prompt += """
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONVERSACIÓN PREVIA (para contexto):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            for entry in self.conversation_history[-3:]:  # Solo últimas 3
+                context_prompt += f"""
+Estudiante: {entry['user']}
+Tú: {entry['bot'][:200]}...
+"""
+
+        # Agregar la pregunta actual y las instrucciones
+        context_prompt += f"""
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PREGUNTA ACTUAL DEL ESTUDIANTE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{question}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INSTRUCCIONES PARA TU RESPUESTA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Responde de forma CLARA y CONCISA (2-4 párrafos máximo)
+2. Refiere ESPECÍFICAMENTE al código y solución mostrada arriba
+3. Si la pregunta es sobre complejidad, explica con EJEMPLOS concretos
+4. Si pregunta "por qué", da la RAZÓN PEDAGÓGICA (por qué tomé esa decisión)
+5. Usa EMOJIS ocasionalmente para hacer la respuesta más amigable
+6. Si pregunta algo NO relacionado con la solución, redirige AMABLEMENTE
+7. Si menciona líneas de código, cítalas con ```python
+8. Mantén un tono de TUTOR AMIGABLE, no de profesor estricto
+9. Si la pregunta es ambigua, haz una suposición razonable y responde
+10. Termina con una mini-pregunta de seguimiento SOLO si es relevante
+
+NO incluyas:
+- Saludos o despedidas largas
+- Repetir toda la pregunta
+- Información que no fue preguntada
+- Código completo a menos que sea necesario
+
+Respuesta (directo al punto):
+"""
+        
+        try:
+            # Llamar a Gemini con el contexto completo
+            response = self.agent.model.generate_content(
+                context_prompt,
+                generation_config=self.agent.generation_config
+            )
+            
+            return response.text.strip()
+            
+        except Exception as e:
+            return f"Lo siento, hubo un error al generar la respuesta: {str(e)}\n\nPor favor, intenta reformular tu pregunta."
+    
+    def save_conversation(self, filename: str):
+        """
+        Guarda la conversación en un archivo
+        
+        Args:
+            filename: Nombre del archivo donde guardar
+        """
+        import json
+        
+        conversation_data = {
+            "problem_name": self.solution.problem_name,
+            "conversation": self.conversation_history
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(conversation_data, f, indent=2, ensure_ascii=False)
+
+
 if __name__ == "__main__":
     main()
